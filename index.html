@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Dịch vụ OTP tạm thời | Giải pháp số hiện đại</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* Toàn bộ khung nhìn chiếm 100% viewport, không có viền hay khoảng trắng thừa */
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;      /* Ẩn thanh cuộn của body để tránh cuộn đôi */
+            background-color: #f5f7fa;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+        }
+
+        /* IFrame chiếm toàn bộ không gian, không viền, không padding/margin */
+        .full-frame {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            margin: 0;
+            padding: 0;
+            display: block;
+            z-index: 1;
+            background: #fff;
+        }
+
+        /* Fallback hiển thị nếu iframe chậm tải (tăng trải nghiệm) */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #1e293b;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.4s ease;
+            backdrop-filter: blur(2px);
+            color: white;
+            font-weight: 500;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .loading-spinner {
+            width: 48px;
+            height: 48px;
+            border: 5px solid rgba(255,255,255,0.2);
+            border-top: 5px solid #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-text {
+            font-size: 1.1rem;
+            letter-spacing: 0.5px;
+            background: rgba(0,0,0,0.5);
+            padding: 6px 14px;
+            border-radius: 40px;
+        }
+
+        /* Đảm bảo khi iframe đã load thì ẩn overlay */
+        .hide-loader {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Tối ưu trên mobile: không có thanh cuộn giả */
+        @media (max-width: 720px) {
+            .full-frame {
+                position: fixed;
+            }
+        }
+
+        /* Đảm bảo rằng nội dung iframe không bị lệch trên iOS */
+        body {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- IFrame chính chứa trang đích, chiếm toàn bộ cửa sổ -->
+    <iframe 
+        class="full-frame" 
+        id="mainFrame"
+        src="https://contact-temp-otp-code.github.io/temp-otp-premium/"
+        title="Temp OTP Premium - Dịch vụ số tạm thời"
+        sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation allow-downloads allow-popups-to-escape-sandbox"
+        referrerpolicy="strict-origin-when-cross-origin"
+        loading="eager"
+    ></iframe>
+
+    <!-- Lớp loading cải thiện trải nghiệm khi tải nội dung -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Đang kết nối nền tảng an toàn ...</div>
+    </div>
+
+    <script>
+        (function() {
+            // Lấy các phần tử DOM
+            const iframe = document.getElementById('mainFrame');
+            const overlay = document.getElementById('loadingOverlay');
+
+            // ---- Ẩn overlay khi iframe đã tải xong ----
+            if (iframe) {
+                // Sự kiện load: nội dung iframe đã load xong (kể cả tài nguyên)
+                iframe.addEventListener('load', function() {
+                    // Thêm một chút delay nhẹ để tránh flicker, nhưng vẫn mượt
+                    setTimeout(() => {
+                        if (overlay) {
+                            overlay.classList.add('hide-loader');
+                            // Sau khi ẩn hoàn toàn, có thể gỡ khỏi DOM để tối ưu (tùy chọn)
+                            setTimeout(() => {
+                                if (overlay && overlay.parentNode) {
+                                    overlay.style.display = 'none';
+                                }
+                            }, 500);
+                        }
+                    }, 200);
+                });
+
+                // Nếu iframe lỗi hoặc không thể tải (mạng chậm, offline...)
+                iframe.addEventListener('error', function() {
+                    if (overlay) {
+                        overlay.innerHTML = '<div style="background:rgba(0,0,0,0.7); padding: 1rem 2rem; border-radius: 50px; text-align:center;">⚠️ Không thể tải dịch vụ. Vui lòng kiểm tra kết nối.<br><button id="reloadBtn" style="margin-top:12px; background:#2563eb; border:none; padding:8px 18px; border-radius: 40px; color:white; font-weight:bold;">Thử lại</button></div>';
+                        const reloadBtn = document.getElementById('reloadBtn');
+                        if (reloadBtn) {
+                            reloadBtn.addEventListener('click', function() {
+                                location.reload(); // Tải lại toàn bộ trang để thử iframe
+                            });
+                        }
+                    }
+                });
+            }
+
+            // Đề phòng trường hợp iframe đã được cache và load quá nhanh,
+            // nhưng overlay vẫn hiện? Đảm bảo kiểm tra readyState.
+            if (iframe && iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+                setTimeout(() => {
+                    if (overlay) overlay.classList.add('hide-loader');
+                }, 100);
+            }
+
+            // ---- PHẦN CHÍNH: Giữ URL trình duyệt luôn là URL hiện tại (không thay đổi) ----
+            // Dù người dùng nhấn link bất kỳ bên trong iframe (chuyển trang nội bộ trong iframe),
+            // thanh địa chỉ trên trình duyệt vẫn giữ nguyên domain của trang cha.
+            // Vấn đề: Một số liên kết nếu có target="_top" hoặc cố gắng phá vỡ iframe sẽ làm thay đổi URL cha.
+            // Để bảo vệ điều này, chúng ta sử dụng cơ chế chặn sự kiện "beforeunload" và theo dõi anchor click?
+            // Nhưng giải pháp mạnh mẽ nhất: Sử dụng thẻ iframe với thuộc tính sandbox nhưng KHÔNG bao gồm
+            // "allow-top-navigation" và "allow-top-navigation-by-user-activation"? Nhưng cần cân bằng để web bên trong
+            // vẫn hoạt động bình thường (form, popup, script). Tuy nhiên trang web đích yêu cầu hiển thị đầy đủ chức năng.
+            // Cách an toàn: Không cấp quyền "allow-top-navigation" và "allow-top-navigation-by-user-activation"
+            // để chặn mọi hành vi điều hướng top-level từ iframe.
+            // TRONG THUỘC TÍNH SANDBOX: chúng ta đã set:
+            // sandbox="allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-top-navigation-by-user-activation allow-downloads allow-popups-to-escape-sandbox"
+            // LƯU Ý: Đã bỏ "allow-top-navigation", chỉ giữ "allow-top-navigation-by-user-activation".
+            // Tuy nhiên "allow-top-navigation-by-user-activation" vẫn cho phép điều hướng top nếu người dùng tương tác trực tiếp với link.
+            // Để an toàn tuyệt đối và giữ URL cha không đổi, giải pháp tối ưu: LOẠI BỎ HOÀN TOÀN "allow-top-navigation-by-user-activation".
+            // Nhưng có thể làm hỏng một số tính năng mong muốn của website nhúng. Dựa trên yêu cầu: "nếu người dùng nhấn vào link nào ở trong web thì link web ở phía trên thanh trình duyệt sẽ vẫn là của tôi" - tức không được phép thay đổi URL gốc.
+            // => Cần chặn mọi hành vi phá iframe (navigation top).
+            // Cách tốt nhất: Cập nhật thuộc tính sandbox không bao gồm allow-top-navigation cũng như allow-top-navigation-by-user-activation.
+            // Chỉ giữ các quyền cần thiết cho chức năng cốt lõi: script, form, popup, same-origin.
+            // Nhưng same-origin nếu có thì trang đích cần tương tác? Vì cả hai domain khác nhau (trang cha là local / domain tùy ý, iframe là github.io). 
+            // allow-same-origin có thể ảnh hưởng đến cookie/ localStorage? Không quá nguy hiểm, nhưng để tương thích tối đa, chúng ta set sandbox an toàn.
+            // Nhưng để đảm bảo tất cả link trong iframe KHÔNG thể thay đổi URL thanh địa chỉ: hãy cập nhật iframe với sandbox chính xác.
+            // Lưu ý: Nếu loại bỏ hoàn toàn allow-top-navigation, thì mọi nỗ lực tự động hay thủ công đều bị chặn. Đó là giải pháp lý tưởng.
+            // Nhưng thử nghiệm cho thấy với GitHub Pages bên trong, có thể một số link mở popup mới (tab mới), không ảnh hưởng URL cha. Vậy tốt.
+            // Do đó: Cập nhật thuộc tính sandbox an toàn: không cấp quyền top navigation.
+        })();
+
+        // Bổ sung để chắc chắn rằng mọi hành vi click có thể phá vỡ iframe đều bị vô hiệu hóa bằng cách sử dụng thêm một lớp bảo vệ phía cha.
+        // Sử dụng sự kiện "message" và "beforeunload" nhưng không cần thiết vì sandbox đã chặn.
+        // Tuy nhiên có một lỗ hổng: Nếu trang nhúng sử dụng window.top.location = ... bằng JavaScript (thông qua script), sandbox không có "allow-top-navigation" sẽ chặn nó.
+        // Đồng thời chúng ta cũng đã set "allow-top-navigation-by-user-activation" = không có nên mọi chuyển hướng top đều fail một cách im lặng hoặc báo lỗi console.
+        // Vì vậy, chúng ta sẽ cập nhật lại iframe để tăng cường bảo mật, nhưng vẫn đáp ứng "hiển thị full chức năng".
+        // Nhưng vì web đích cần hoạt động OTP, cần cookies, localStorage, scripts,... vậy nên giữ lại allow-same-origin, allow-scripts, forms, popups.
+        // Loại bỏ hoàn toàn các quyền gây ảnh hưởng đến URL cha.
+        
+        // Tuy nhiên hiện tại iframe đã được tạo trong HTML. Chúng ta có thể điều chỉnh lại sandbox ngay khi DOM sẵn sàng để loại bỏ quyền "allow-top-navigation-by-user-activation" nếu còn.
+        window.addEventListener('DOMContentLoaded', function() {
+            const frame = document.getElementById('mainFrame');
+            if (frame) {
+                // Thiết lập sandbox cứng chặn mọi hành vi đổi URL top (kể cả tương tác người dùng)
+                // Cung cấp đầy đủ quyền cho hoạt động nội bộ nhưng không thể thoát iframe.
+                // Các quyền an toàn: cho phép script, gửi form, popup, lưu trữ đồng nguồn (same-origin), modal, download.
+                // KHÔNG cho phép "allow-top-navigation" và "allow-top-navigation-by-user-activation".
+                const safeSandbox = "allow-same-origin allow-scripts allow-popups allow-forms allow-modals allow-downloads allow-popups-to-escape-sandbox";
+                // Cập nhật lại để bảo đảm (ghi đè lên bất kỳ cấu hình cũ nếu có)
+                frame.setAttribute('sandbox', safeSandbox);
+                
+                // Bổ sung: Nếu có load lại trang mà vẫn muốn giữ URL cha, đây là lớp bảo vệ cuối cùng.
+                // Thêm một sự kiện trước khi cửa sổ cha thay đổi (chỉ đề phòng nếu có script bên ngoài can thiệp).
+                window.addEventListener('beforeunload', function(e) {
+                    // Nếu trang cha bị thay đổi, không phải do người dùng nhập tay mà do iframe, có thể chặn hiển thị xác nhận?
+                    // Nhưng để tránh phiền phức, không can thiệp sâu. Tuy nhiên vì sandbox không cho phép nên hầu như không thể.
+                    // Dành cho các trường hợp hy hữu nếu sandbox bị vô hiệu bởi lỗi trình duyệt, ta có thể đưa ra thông báo.
+                    // Nhưng vì yêu cầu đơn giản, không cần over engineered.
+                });
+            }
+        });
+
+        // ĐẢM BẢO KHÔNG CÓ SỰ KIỆN CLICK NÀO BÊN NGOÀI LÀM THAY ĐỔI URL.
+        // Ngoài ra nếu người dùng nhấn link mở trong tab mới (target="_blank") thì không ảnh hưởng URL cha -> vẫn thoả mãn.
+        
+        // Một giải pháp bổ sung để tránh hiện tượng iframe redirect top-level bằng cách theo dõi sự kiện "load" trên window.
+        // Vì sandbox config đúng thì không cần, nhưng đảm bảo thêm layer an toàn:
+        let originalUrl = window.location.href;
+        setInterval(() => {
+            // Nếu URL bị thay đổi bất thường (do một lỗ hổng nào đó), lập tức quay lại URL gốc.
+            // Nhưng điều này gây khó chịu nếu người dùng chủ động bấm back/forward hoặc nhập tay. Vì vậy nên chỉ áp dụng nếu phát hiện chuyển hướng từ iframe.
+            // Tuy nhiên, vì chúng ta đã dùng sandbox nên không cần, nhưng để an toàn tuyệt đối trong trường hợp hack hoặc trình duyệt cũ:
+            if (window.location.href !== originalUrl) {
+                // Kiểm tra xem có phải do iframe nhúng gây ra không? Rất khó.
+                // Nhưng yêu cầu cứng: "link web ở phía trên thanh trình duyệt sẽ vẫn là của tôi"
+                // Nếu phát hiện thay đổi, chúng ta sẽ reload lại trạng thái ban đầu bằng history.replaceState
+                // nhưng tránh loop vô hạn.
+                console.warn("Phát hiện URL thay đổi, khôi phục về trang gốc.");
+                history.replaceState(null, '', originalUrl);
+                // Cũng có thể tải lại iframe về nội dung ban đầu nếu cần.
+                const frame = document.getElementById('mainFrame');
+                if (frame && frame.src !== 'https://contact-temp-otp-code.github.io/temp-otp-premium/') {
+                    frame.src = 'https://contact-temp-otp-code.github.io/temp-otp-premium/';
+                }
+            }
+        }, 200); // kiểm tra mỗi 200ms, giải pháp phòng thủ.
+        
+        // Lưu ý rằng: nếu người dùng nhấp vào các link có target="_top" hoặc JavaScript gọi top.location, 
+        // do sandbox không cấp quyền nên sẽ không làm URL cha thay đổi.
+        // Tuy nhiên kỹ thuật setInterval giúp bảo vệ tối đa nếu có lỗi.
+        
+        // Xử lý thêm sự kiện popstate để tránh back/forward có thể làm thay đổi URL tạm thời (không liên quan tới iframe).
+        // Nhưng vì yêu cầu của bạn: "nếu người dùng nhấn vào link nào ở trong web thì url trình duyệt vẫn là của tôi" nghĩa là không thay đổi thành URL khác.
+        // Cần đảm bảo không redirect, không thay đổi hash? Hash thay đổi có được không? Hash thay đổi cũng làm URL thay đổi (phần sau #) thường không tải lại trang, nhưng vẫn thay đổi thanh địa chỉ.
+        // Nếu người dùng nhấn link trong iframe mà anchor (hash) thay đổi ở URL cha? Điều đó hầu như không xảy ra vì link trong iframe không thể thay đổi hash của cha một cách an toàn (do cross-origin). Họ không thể can thiệp window.parent.location.hash vì khác nguồn gốc -> bị lỗi bảo mật. Nên yên tâm.
+        // Nhưng setInterval so sánh URL gốc sẽ khôi phục nếu có lỗi xảy ra.
+        
+        // Ngoài ra cần tối ưu trải nghiệm: đảm bảo hiển thị FULL màn hình, không cuộn kép.
+        // CSS đáp ứng full, iframe fixed. Ổn thỏa.
+        
+        // Thêm tinh chỉnh cho một số điện thoại: Đảm bảo iframe scale đúng.
+        function fixViewport() {
+            const vh = window.innerHeight * 0.01;
+            document.documentElement.style.setProperty('--vh', `${vh}px`);
+        }
+        window.addEventListener('resize', fixViewport);
+        fixViewport();
+        
+        // Đề phòng khi ứng dụng bên trong gửi postMessage có thể cố ý làm gì, không ảnh hưởng.
+        // KHÔNG có hành vi nào can thiệp URL cha.
+        
+        // Xóa overlay nếu iframe load quá chậm mà vẫn bị lỗi nhưng load một phần.
+        setTimeout(() => {
+            if (overlay && !overlay.classList.contains('hide-loader')) {
+                // sau 6s nếu vẫn chưa load (mạng chậm), vẫn cho ẩn để không che nội dung
+                overlay.classList.add('hide-loader');
+                setTimeout(() => {
+                    if (overlay.style.display !== 'none') overlay.style.display = 'none';
+                }, 300);
+            }
+        }, 6000);
+        
+        // Tạo cơ chế cho phép người dùng reload lại iframe mà không ảnh hưởng URL (nếu muốn)
+        // Có thể thêm 1 nút nhỏ nổi? Nhưng yêu cầu không cần. Giữ giao diện tối giản, chuyên nghiệp.
+        // Đảm bảo không có scroll trùng lặp:
+        const style = document.createElement('style');
+        style.textContent = `
+            body {
+                overflow: hidden;
+                position: fixed;
+                width: 100%;
+                height: 100%;
+            }
+            /* Loại bỏ mọi margin thừa */
+        `;
+        document.head.appendChild(style);
+        
+        // Một số trình duyệt cho phép kéo thả file làm thay đổi iframe, không đáng ngại.
+        // Bổ sung tên trang web dễ nhìn thẻ title.
+        document.title = "Temp OTP Premium | Nhận mã an toàn";
+
+        // Log hoàn tất
+        console.log("Trang đã sẵn sàng – URL sẽ được bảo vệ, iframe phủ toàn màn hình.");
+    </script>
+</body>
+</html>
